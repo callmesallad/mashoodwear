@@ -1,5 +1,5 @@
 /**
- * Brand logo — image with hover zoom; falls back to MASHHOOD text on error or missing URL.
+ * Brand logo — image with hover zoom; falls back to MASHOOD text on error or missing URL.
  */
 import { useState } from "react";
 
@@ -26,7 +26,7 @@ export default function Logo({
           onError={() => setImageFailed(true)}
         />
       ) : (
-        <span className={fallbackClassName}>MASHHOOD</span>
+        <span className={fallbackClassName}>MASHOOD</span>
       )}
     </span>
   );

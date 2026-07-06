@@ -177,6 +177,7 @@ sudo systemctl restart mashoodwear-api
 | Symptom | Check |
 |---------|--------|
 | 502 Bad Gateway | `journalctl -u mashoodwear-api -n 50` — API down or wrong port |
+| `admins doesn't exist` | Run `cd /opt/mashoodwear && npm run migrate` then `systemctl restart mashoodwear-api`. API also auto-runs SQL migrations on boot (v0.1.1+). |
 | CORS errors | `CORS_ORIGIN` must match exact site URL (scheme + host) |
 | Upload fails | `UPLOAD_DIR` exists and is writable |
 | Admin 403 | JWT expired — log in again; check `JWT_SECRET` unchanged |

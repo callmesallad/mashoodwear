@@ -1,7 +1,7 @@
 [Unit]
 Description=Mashoodwear API (Express)
-After=network.target mysql.service
-Wants=mysql.service
+After=network.target docker.service
+Wants=docker.service
 
 [Service]
 Type=simple

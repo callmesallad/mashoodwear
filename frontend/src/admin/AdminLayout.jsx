@@ -25,7 +25,7 @@ export default function AdminLayout() {
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <p className="admin-brand">MASHHOOD Admin</p>
+        <p className="admin-brand">MASHOOD Admin</p>
         <nav className="admin-nav">
           {NAV.map((item) => (
             <NavLink

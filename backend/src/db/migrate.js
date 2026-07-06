@@ -1,15 +1,17 @@
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import { pool } from "./pool.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDir = path.join(__dirname, "migrations");
 
 /**
- * Run SQL migration files in order against the configured database.
+ * Apply pending SQL migration files in order.
+ * Safe to call on every API boot — already-applied files are skipped.
+ * Does not close the pool (caller may keep using it).
  */
-async function runMigrations() {
+export async function runSqlMigrations() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       filename VARCHAR(255) PRIMARY KEY,
@@ -60,10 +62,17 @@ async function runMigrations() {
   }
 
   console.log("Migrations complete.");
-  await pool.end();
 }
 
-runMigrations().catch((error) => {
-  console.error("Migration failed:", error.message);
-  process.exit(1);
-});
+const isCli =
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+if (isCli) {
+  runSqlMigrations()
+    .then(() => pool.end())
+    .catch((error) => {
+      console.error("Migration failed:", error.message);
+      process.exit(1);
+    });
+}

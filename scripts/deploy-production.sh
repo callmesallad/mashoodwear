@@ -57,20 +57,35 @@ fi
 
 log "Installing npm dependencies..."
 cd "${APP_DIR}"
-npm run install:all
+# Lockfiles created behind regional mirrors must not block deploy on other networks
+for lock in backend/package-lock.json frontend/package-lock.json; do
+  if [[ -f "${lock}" ]] && grep -q 'package-mirror.liara.ir' "${lock}"; then
+    sed -i 's|https://package-mirror.liara.ir/repository/npm/|https://registry.npmjs.org/|g' "${lock}"
+  fi
+done
+export NPM_CONFIG_REGISTRY="${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org/}"
+npm run install:all --loglevel=info
 
 log "Preparing uploads directory..."
 mkdir -p "${UPLOAD_DIR}"
 chown -R "${SERVICE_USER}:${SERVICE_USER}" "${UPLOAD_DIR}"
 
+wait_for_mysql() {
+  log "Waiting for MySQL to accept queries..."
+  for _ in $(seq 1 60); do
+    if docker compose -f "${APP_DIR}/docker-compose.yml" exec -T mysql \
+        mysql -u mashoodwear -pmashoodwear_dev mashoodwear -e "SELECT 1" >/dev/null 2>&1; then
+      log "MySQL ready."
+      return 0
+    fi
+    sleep 2
+  done
+  die "MySQL not ready after 120s — check: docker compose -f ${APP_DIR}/docker-compose.yml logs mysql"
+}
+
 log "Starting MySQL (Docker)..."
 docker compose -f "${APP_DIR}/docker-compose.yml" up -d
-for _ in $(seq 1 30); do
-  if docker compose -f "${APP_DIR}/docker-compose.yml" exec -T mysql mysqladmin ping -h localhost --silent 2>/dev/null; then
-    break
-  fi
-  sleep 2
-done
+wait_for_mysql
 
 ENV_FILE="${APP_DIR}/backend/.env"
 if [[ ! -f "${ENV_FILE}" ]]; then
@@ -110,7 +125,12 @@ fi
 
 log "Running database migrations..."
 cd "${APP_DIR}"
-npm run migrate
+npm run migrate || die "Database migration failed — fix errors above before starting API"
+
+if ! docker compose -f "${APP_DIR}/docker-compose.yml" exec -T mysql \
+    mysql -u mashoodwear -pmashoodwear_dev mashoodwear -N -e "SHOW TABLES LIKE 'admins';" 2>/dev/null | grep -q '^admins$'; then
+  die "admins table missing after migrate — database schema incomplete"
+fi
 
 log "Building frontend..."
 cd "${APP_DIR}/frontend"
@@ -194,8 +214,13 @@ else
 fi
 
 log "Health check..."
-sleep 2
-curl -fsS "http://127.0.0.1:3001/api/health" || die "API health check failed"
+for _ in $(seq 1 15); do
+  if curl -fsS "http://127.0.0.1:3001/api/health" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 2
+done
+curl -fsS "http://127.0.0.1:3001/api/health" || die "API health check failed after restart"
 systemctl --no-pager status mashoodwear-api | head -5
 
 log "Deploy complete."
