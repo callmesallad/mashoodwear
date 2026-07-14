@@ -304,3 +304,109 @@ export async function getProductBySlug(slug) {
     stockLabel: buildStockLabel(totalStock),
   };
 }
+
+/**
+ * Append unique product rows until the target count is reached.
+ * @param {object[]} combined
+ * @param {object[]} candidates
+ * @param {number} limit
+ * @returns {object[]}
+ */
+function mergeUniqueProductRows(combined, candidates, limit) {
+  const seenIds = new Set(combined.map((row) => row.id));
+  const next = [...combined];
+
+  for (const row of candidates) {
+    if (next.length >= limit) {
+      break;
+    }
+    if (seenIds.has(row.id)) {
+      continue;
+    }
+    seenIds.add(row.id);
+    next.push(row);
+  }
+
+  return next;
+}
+
+/**
+ * Suggested products for a detail page: same category, then shared collections, then recent active.
+ * @param {string} slug
+ * @param {number} [limit=4]
+ * @returns {Promise<{ items: object[] } | null>}
+ */
+export async function listSuggestedProducts(slug, limit = 4) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 4, 1), 12);
+
+  const [sourceRows] = await pool.query(
+    `SELECT p.id, p.category_id
+     FROM products p
+     WHERE p.slug = ? AND p.status IN ('active', 'out_of_stock')
+     LIMIT 1`,
+    [slug]
+  );
+
+  if (sourceRows.length === 0) {
+    return null;
+  }
+
+  const source = sourceRows[0];
+  /** @type {object[]} */
+  let combinedRows = [];
+
+  const categoryRows = await queryProductRows(
+    "p.status IN ('active', 'out_of_stock') AND p.category_id = ? AND p.id != ?",
+    [source.category_id, source.id],
+    "p.updated_at DESC",
+    safeLimit
+  );
+  combinedRows = mergeUniqueProductRows(combinedRows, categoryRows, safeLimit);
+
+  if (combinedRows.length < safeLimit) {
+    const excludeIds = [source.id, ...combinedRows.map((row) => row.id)];
+    const remaining = safeLimit - combinedRows.length;
+    const [collectionRows] = await pool.query(
+      `SELECT p.id, p.name, p.slug, p.price, p.status, p.is_featured, p.updated_at,
+              (
+                SELECT pi.file_path
+                FROM product_images pi
+                WHERE pi.product_id = p.id
+                ORDER BY pi.display_order ASC, pi.id ASC
+                LIMIT 1
+              ) AS image_path
+       FROM products p
+       WHERE p.status IN ('active', 'out_of_stock')
+         AND p.id NOT IN (?)
+         AND EXISTS (
+           SELECT 1
+           FROM product_collections pc
+           WHERE pc.product_id = p.id
+             AND pc.collection_id IN (
+               SELECT source_pc.collection_id
+               FROM product_collections source_pc
+               WHERE source_pc.product_id = ?
+             )
+         )
+       ORDER BY p.updated_at DESC
+       LIMIT ?`,
+      [excludeIds, source.id, remaining]
+    );
+    combinedRows = mergeUniqueProductRows(combinedRows, collectionRows, safeLimit);
+  }
+
+  if (combinedRows.length < safeLimit) {
+    const excludeIds = [source.id, ...combinedRows.map((row) => row.id)];
+    const remaining = safeLimit - combinedRows.length;
+    const backfillRows = await queryProductRows(
+      "p.status IN ('active', 'out_of_stock') AND p.id NOT IN (?)",
+      [excludeIds],
+      "p.is_featured DESC, p.updated_at DESC",
+      remaining
+    );
+    combinedRows = mergeUniqueProductRows(combinedRows, backfillRows, safeLimit);
+  }
+
+  const items = await rowsToItems(combinedRows);
+  return { items };
+}

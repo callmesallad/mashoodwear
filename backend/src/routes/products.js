@@ -1,5 +1,9 @@
 import { Router } from "express";
-import { getProductBySlug, listProducts } from "../services/productService.js";
+import {
+  getProductBySlug,
+  listProducts,
+  listSuggestedProducts,
+} from "../services/productService.js";
 
 const router = Router();
 
@@ -31,6 +35,23 @@ router.get("/", async (request, response) => {
     response.json({ ok: true, ...result });
   } catch (error) {
     console.error("GET /api/products failed:", error.message);
+    response.status(500).json({ ok: false, error: "server_error" });
+  }
+});
+
+router.get("/:slug/related", async (request, response) => {
+  try {
+    const limit = request.query.limit ? Number(request.query.limit) : 4;
+    const result = await listSuggestedProducts(request.params.slug, limit);
+
+    if (!result) {
+      response.status(404).json({ ok: false, error: "not_found" });
+      return;
+    }
+
+    response.json({ ok: true, items: result.items });
+  } catch (error) {
+    console.error("GET /api/products/:slug/related failed:", error.message);
     response.status(500).json({ ok: false, error: "server_error" });
   }
 });

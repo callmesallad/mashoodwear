@@ -2,6 +2,8 @@
 
 > Stack: React (Vite) + Node.js (Express) + MySQL · Orders via Instagram / Telegram DM.
 
+> **سرور ایران:** راهنمای جداگانه با mirror npm، MariaDB بدون Docker و نصب Node از tarball → [`DEPLOY-IRAN.md`](./DEPLOY-IRAN.md)
+
 ---
 
 ## 1. Server requirements

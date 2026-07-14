@@ -59,6 +59,12 @@
  */
 
 /**
+ * @typedef {object} RelatedProductsResponse
+ * @property {boolean} ok
+ * @property {ProductItem[]} items
+ */
+
+/**
  * @typedef {object} CategoryItem
  * @property {number} id
  * @property {string} name

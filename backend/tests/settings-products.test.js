@@ -160,3 +160,37 @@ describe("GET /api/products/:slug", () => {
     assert.equal(body.error, "not_found");
   });
 });
+
+describe("GET /api/products/:slug/related", () => {
+  const run = server ? it : it.skip;
+
+  run("returns suggested products excluding the current slug", async () => {
+    const response = await fetch(
+      `${baseUrl}/api/products/street-hoodie-black/related?limit=4`
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.ok(Array.isArray(body.items));
+    assert.ok(body.items.length > 0);
+    assert.ok(body.items.length <= 4);
+
+    for (const product of body.items) {
+      assert.notEqual(product.slug, "street-hoodie-black");
+      assert.ok(product.slug);
+      assert.ok(typeof product.price === "number");
+    }
+  });
+
+  run("returns 404 for unknown slug", async () => {
+    const response = await fetch(
+      `${baseUrl}/api/products/does-not-exist-slug/related`
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 404);
+    assert.equal(body.ok, false);
+    assert.equal(body.error, "not_found");
+  });
+});

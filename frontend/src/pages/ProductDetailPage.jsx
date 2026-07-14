@@ -5,6 +5,7 @@ import Toast from "../components/Toast";
 import PersianText from "../components/PersianText";
 import ProductDetailSkeleton from "../components/products/ProductDetailSkeleton";
 import ProductGallery from "../components/products/ProductGallery";
+import RelatedProducts from "../components/products/RelatedProducts";
 import VariantPicker from "../components/products/VariantPicker";
 import StateMessage from "../components/StateMessage";
 import { formatPrice } from "../utils/formatPrice";
@@ -71,6 +72,10 @@ export default function ProductDetailPage() {
   useEffect(() => {
     loadProduct();
   }, [loadProduct]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [slug]);
 
   const sizes = useMemo(
     () => (product ? uniqueSizes(product.variants) : []),
@@ -207,6 +212,8 @@ export default function ProductDetailPage() {
           )}
         </div>
       </div>
+
+      <RelatedProducts productSlug={product.slug} />
 
       {toastMessage && (
         <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />

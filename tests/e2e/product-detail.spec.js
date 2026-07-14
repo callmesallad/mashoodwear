@@ -27,4 +27,18 @@ test.describe("Product detail page", () => {
     await expect(page.getByText("Product not found")).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: "Back to Products" })).toBeVisible();
   });
+
+  test("shows suggested products below the detail", async ({ page }) => {
+    await page.goto("/products");
+
+    const firstCard = page.locator(".products-results .product-card").first();
+    await expect(firstCard).toBeVisible({ timeout: 15000 });
+    await firstCard.click();
+
+    await expect(page.locator(".product-detail")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole("heading", { name: "You may also like" })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page.locator(".related-products .product-card").first()).toBeVisible();
+  });
 });

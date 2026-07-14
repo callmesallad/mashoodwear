@@ -138,6 +138,16 @@
   white-space: pre-wrap;
 }
 
+.related-products {
+  padding: var(--space-7) 0 var(--space-4);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--space-4);
+}
+
+.related-products .section-header {
+  margin-bottom: var(--space-5);
+}
+
 .toast {
   position: fixed;
   top: 88px;

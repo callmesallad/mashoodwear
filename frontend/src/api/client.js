@@ -111,6 +111,36 @@ export async function getProductBySlug(slug) {
 }
 
 /**
+ * Suggested products for a product detail page.
+ * @param {string} slug
+ * @param {{ limit?: number, signal?: AbortSignal }} [options]
+ * @returns {Promise<import('../types').RelatedProductsResponse | import('../types').ProductNotFoundResponse>}
+ */
+export async function getRelatedProducts(slug, options = {}) {
+  const { limit = 4, signal } = options;
+  const search = new URLSearchParams();
+  if (limit) {
+    search.set("limit", String(limit));
+  }
+  const query = search.toString();
+  const response = await fetch(
+    `/api/products/${encodeURIComponent(slug)}/related${query ? `?${query}` : ""}`,
+    { signal }
+  );
+  const body = await response.json();
+
+  if (response.status === 404) {
+    return { ok: false, notFound: true };
+  }
+
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+
+  return body;
+}
+
+/**
  * @returns {Promise<import('../types').CollectionsResponse>}
  */
 export function getCollections() {
